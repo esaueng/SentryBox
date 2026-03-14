@@ -8,5 +8,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/esaueng/SentryBox/issues",
   "loggers": ["custom_components.sentrybox"],
-  "version": "0.1.2"
+  "version": "0.1.3"
 }

@@ -32,6 +32,7 @@ class SentryBoxLastAnalysisImage(SentryBoxEntity, ImageEntity):
 
     def __init__(self, coordinator: SentryBoxCoordinator, entry: ConfigEntry) -> None:
         """Initialize the image entity."""
+        ImageEntity.__init__(self)
         super().__init__(coordinator, entry, "last_analysis_frame")
         self._preview_path = coordinator.preview_image_path
         self._image_last_updated = self._read_file_timestamp(self._preview_path)
