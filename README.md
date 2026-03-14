@@ -11,6 +11,7 @@ SentryBox is a Home Assistant custom integration that monitors an RTSP or RTSPS 
 - `custom_components/sentrybox/coordinator.py`: Frame capture, optional crop, Ollama call, JSON parsing, and debounce logic.
 - `custom_components/sentrybox/entity.py`: Shared entity metadata and state attributes.
 - `custom_components/sentrybox/binary_sensor.py`: Package detected entity.
+- `custom_components/sentrybox/button.py`: Reset prompt button entity.
 - `custom_components/sentrybox/sensor.py`: Confidence and summary entities.
 - `custom_components/sentrybox/image.py`: Preview entity for the exact frame sent to Ollama.
 - `custom_components/sentrybox/services.yaml`: `sentrybox.reanalyze_now` service definition.
@@ -40,6 +41,7 @@ After the integration is created, open the entry options to tune:
 - frame capture timeout and Ollama timeout
 - confidence threshold
 - prompt override
+- large multiline prompt editing
 - optional crop region
 - snapshot retention
 - positive and negative debounce counts
@@ -64,6 +66,7 @@ Each coordinator refresh performs the same pipeline:
 6. Apply the consecutive positive/negative debounce rules to avoid noisy state flips.
 7. Update:
    - `binary_sensor.<name>_package_detected`
+   - `button.<name>_reset_prompt`
    - `sensor.<name>_confidence`
    - `sensor.<name>_summary`
    - `image.<name>_last_analysis_frame`

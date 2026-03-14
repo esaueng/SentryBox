@@ -429,6 +429,11 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
             / f"{self.config_entry.entry_id}.jpg"
         )
 
+    @property
+    def preview_image_path(self) -> str:
+        """Return the persisted preview image path for this entry."""
+        return str(self._snapshot_path())
+
     def _store_preview_image_sync(self, source_path: str) -> str:
         """Store the latest analyzed image for preview in Home Assistant."""
         preview_path = self._snapshot_path()

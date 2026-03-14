@@ -10,7 +10,12 @@ from urllib.parse import SplitResult, urlsplit, urlunsplit
 from homeassistant.const import Platform
 
 DOMAIN = "sentrybox"
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.IMAGE, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.IMAGE,
+    Platform.SENSOR,
+]
 
 CONF_CROP_HEIGHT = "crop_height"
 CONF_CROP_WIDTH = "crop_width"

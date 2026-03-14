@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.button import ButtonEntity
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
@@ -69,6 +70,10 @@ class SentryBoxEntity(CoordinatorEntity[SentryBoxCoordinator]):
 
 class SentryBoxBinarySensorEntity(SentryBoxEntity, BinarySensorEntity):
     """Typed base class for SentryBox binary sensors."""
+
+
+class SentryBoxButtonEntity(SentryBoxEntity, ButtonEntity):
+    """Typed base class for SentryBox buttons."""
 
 
 class SentryBoxSensorEntity(SentryBoxEntity, SensorEntity):

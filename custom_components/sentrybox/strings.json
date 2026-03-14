@@ -43,6 +43,9 @@
           "crop_y": "Crop y",
           "crop_width": "Crop width",
           "crop_height": "Crop height"
+        },
+        "data_description": {
+          "detection_prompt": "This field supports long multiline prompts. Leave it blank to restore the built-in default, or use the Reset Prompt button entity on the device."
         }
       }
     },
@@ -51,7 +54,6 @@
       "crop_incomplete": "Provide all crop fields or leave them all blank.",
       "crop_out_of_range": "Crop values must be between 0 and 1, with positive width and height.",
       "empty_model_name": "Enter an Ollama model name.",
-      "empty_prompt": "Enter a detection prompt.",
       "invalid_ffmpeg_timeout": "Frame capture timeout must be a whole number between 5 and 300.",
       "invalid_ollama_url": "Enter a valid HTTP or HTTPS Ollama URL.",
       "invalid_ollama_timeout": "Ollama timeout must be a whole number between 5 and 300.",

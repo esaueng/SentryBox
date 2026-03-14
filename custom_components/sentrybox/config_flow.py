@@ -14,6 +14,7 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_NAME
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
 
 from .const import (
     CONF_CONFIDENCE_THRESHOLD,
@@ -31,6 +32,7 @@ from .const import (
     CONF_POSITIVE_DETECTIONS_REQUIRED,
     CONF_RETAIN_LATEST_SNAPSHOT,
     CONF_STREAM_URL,
+    DEFAULT_DETECTION_PROMPT,
     DEFAULT_NAME,
     DEFAULT_OLLAMA_BASE_URL,
     DEFAULT_OLLAMA_MODEL,
@@ -196,7 +198,7 @@ def _validate_options_payload(user_input: dict[str, Any]) -> ValidationResult:
                 errors[key] = crop_error
 
     if not cleaned_data[CONF_DETECTION_PROMPT]:
-        errors[CONF_DETECTION_PROMPT] = "empty_prompt"
+        cleaned_data[CONF_DETECTION_PROMPT] = DEFAULT_DETECTION_PROMPT
 
     return ValidationResult(errors=errors, cleaned_data=cleaned_data)
 
@@ -257,7 +259,7 @@ def _options_schema(current: dict[str, Any]) -> vol.Schema:
             vol.Required(
                 CONF_DETECTION_PROMPT,
                 default=current[CONF_DETECTION_PROMPT],
-            ): str,
+            ): TextSelector(TextSelectorConfig(multiline=True)),
             vol.Required(
                 CONF_RETAIN_LATEST_SNAPSHOT,
                 default=current[CONF_RETAIN_LATEST_SNAPSHOT],
