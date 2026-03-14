@@ -51,8 +51,17 @@ class SentryBoxEntity(CoordinatorEntity[SentryBoxCoordinator]):
             "last_raw_response": result.raw_response,
             "last_image_path": result.snapshot_path,
             "preview_image_path": result.preview_image_path,
-            "raw_package_detected": result.raw_package_detected,
-            "model_package_detected": result.model_package_detected,
+            "detection_profile": result.detection_profile,
+            "detection_label": result.detection_label,
+            "binary_sensor_name": result.binary_sensor_name,
+            "raw_detected": result.raw_detected,
+            "model_detected": result.model_detected,
+            "raw_package_detected": result.raw_detected
+            if result.detection_profile == "package_delivery"
+            else None,
+            "model_package_detected": result.model_detected
+            if result.detection_profile == "package_delivery"
+            else None,
             "confidence_threshold": result.confidence_threshold,
             "positive_streak": result.positive_streak,
             "negative_streak": result.negative_streak,

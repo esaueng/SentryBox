@@ -26,8 +26,8 @@ from .const import (
     CONF_CROP_WIDTH,
     CONF_CROP_X,
     CONF_CROP_Y,
+    CONF_DETECTION_PROFILE,
     CONF_FFMPEG_TIMEOUT,
-    CONF_DETECTION_PROMPT,
     CONF_NEGATIVE_DETECTIONS_REQUIRED,
     CONF_OLLAMA_BASE_URL,
     CONF_OLLAMA_MODEL,
@@ -40,6 +40,10 @@ from .const import (
     MAX_SUMMARY_LENGTH,
     OLLAMA_JSON_SCHEMA,
     SNAPSHOT_DIRECTORY,
+    get_binary_sensor_icon,
+    get_binary_sensor_name,
+    get_detection_label,
+    get_effective_detection_prompt,
     get_entry_value,
     redact_url,
 )
@@ -52,7 +56,7 @@ SentryBoxConfigEntry = ConfigEntry
 class ParsedDetection:
     """The normalized detection payload from Ollama."""
 
-    package_detected: bool
+    event_detected: bool
     confidence: float
     summary: str
     raw_response: str
@@ -62,9 +66,9 @@ class ParsedDetection:
 class SentryBoxResult:
     """State exposed by the coordinator."""
 
-    package_detected: bool
-    raw_package_detected: bool
-    model_package_detected: bool
+    detected: bool
+    raw_detected: bool
+    model_detected: bool
     confidence: float
     summary: str
     last_analyzed: datetime
@@ -77,11 +81,15 @@ class SentryBoxResult:
     negative_streak: int
     positive_required: int
     negative_required: int
+    detection_profile: str
+    detection_label: str
+    binary_sensor_name: str
+    binary_sensor_icon: str
     error: str | None = None
 
 
 class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
-    """Coordinate frame capture and package analysis."""
+    """Coordinate frame capture and scenario detection analysis."""
 
     config_entry: SentryBoxConfigEntry
 
@@ -133,10 +141,9 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
     @property
     def detection_prompt(self) -> str:
         """Return the effective prompt."""
-        return get_entry_value(
+        return get_effective_detection_prompt(
             self.config_entry.data,
             self.config_entry.options,
-            CONF_DETECTION_PROMPT,
         )
 
     @property
@@ -226,6 +233,32 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         """Return the last valid preview frame bytes."""
         return self._last_preview_bytes
 
+    @property
+    def detection_profile(self) -> str:
+        """Return the active detection profile key."""
+        return str(
+            get_entry_value(
+                self.config_entry.data,
+                self.config_entry.options,
+                CONF_DETECTION_PROFILE,
+            )
+        )
+
+    @property
+    def detection_label(self) -> str:
+        """Return the active detection label."""
+        return get_detection_label(self.config_entry.data, self.config_entry.options)
+
+    @property
+    def binary_sensor_name(self) -> str:
+        """Return the display name for the detected binary sensor."""
+        return get_binary_sensor_name(self.config_entry.data, self.config_entry.options)
+
+    @property
+    def binary_sensor_icon(self) -> str:
+        """Return the icon for the detected binary sensor."""
+        return get_binary_sensor_icon(self.config_entry.data, self.config_entry.options)
+
     async def _async_update_data(self) -> SentryBoxResult:
         """Capture a frame, analyze it with Ollama, and update entity state."""
         analyzed_at = datetime.now(timezone.utc)
@@ -244,15 +277,15 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
             raw_response = await self._async_call_ollama(encoded_image)
             parsed = self._parse_ollama_response(raw_response)
             raw_detected = (
-                parsed.package_detected
+                parsed.event_detected
                 and parsed.confidence >= self.confidence_threshold
             )
             stable_detected = self._apply_debounce(raw_detected)
             self._clear_failure_state()
             return SentryBoxResult(
-                package_detected=stable_detected,
-                raw_package_detected=raw_detected,
-                model_package_detected=parsed.package_detected,
+                detected=stable_detected,
+                raw_detected=raw_detected,
+                model_detected=parsed.event_detected,
                 confidence=parsed.confidence,
                 summary=parsed.summary,
                 last_analyzed=analyzed_at,
@@ -265,6 +298,10 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
                 negative_streak=self._negative_streak,
                 positive_required=self.positive_required,
                 negative_required=self.negative_required,
+                detection_profile=self.detection_profile,
+                detection_label=self.detection_label,
+                binary_sensor_name=self.binary_sensor_name,
+                binary_sensor_icon=self.binary_sensor_icon,
             )
         except UpdateFailed as err:
             self._log_failure_once(type(err).__name__, str(err))
@@ -349,13 +386,16 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         if parsed_payload is None:
             LOGGER.debug("SentryBox received malformed JSON from Ollama")
             return ParsedDetection(
-                package_detected=False,
+                event_detected=False,
                 confidence=0.0,
                 summary="Model response was not valid JSON",
                 raw_response=content,
             )
 
-        package_detected = bool(parsed_payload.get("package_detected", False))
+        detected_value = parsed_payload.get("event_detected")
+        if detected_value is None:
+            detected_value = parsed_payload.get("package_detected", False)
+        event_detected = bool(detected_value)
         confidence = parsed_payload.get("confidence", 0.0)
         try:
             confidence = max(0.0, min(1.0, float(confidence)))
@@ -368,7 +408,7 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         summary = summary[:MAX_SUMMARY_LENGTH]
 
         return ParsedDetection(
-            package_detected=package_detected,
+            event_detected=event_detected,
             confidence=confidence,
             summary=summary,
             raw_response=content,

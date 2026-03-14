@@ -3,17 +3,24 @@
     "step": {
       "user": {
         "title": "Set up SentryBox",
-        "description": "Configure the camera stream and local Ollama vision model.",
+        "description": "Configure the camera stream, detection target, and local Ollama vision model.",
         "data": {
           "name": "Name",
           "stream_url": "RTSP/RTSPS stream URL",
           "ollama_base_url": "Ollama base URL",
-          "ollama_model": "Ollama model name"
+          "ollama_model": "Ollama model name",
+          "detection_profile": "Detection profile",
+          "custom_detection_label": "Custom detection label"
+        },
+        "data_description": {
+          "custom_detection_label": "Only required when Detection profile is set to Custom detection."
         }
       }
     },
     "error": {
+      "empty_custom_detection_label": "Enter a custom detection label.",
       "empty_model_name": "Enter an Ollama model name.",
+      "invalid_detection_profile": "Select a valid detection profile.",
       "invalid_ollama_url": "Enter a valid HTTP or HTTPS Ollama URL.",
       "invalid_stream_url": "Enter a valid RTSP or RTSPS stream URL."
     },
@@ -25,12 +32,14 @@
     "step": {
       "init": {
         "title": "SentryBox options",
-        "description": "Adjust polling, prompt, crop, confidence threshold, and debounce behavior.",
+        "description": "Adjust the detection scenario, polling, prompt, crop, confidence threshold, and debounce behavior.",
         "data": {
           "name": "Name",
           "stream_url": "RTSP/RTSPS stream URL",
           "ollama_base_url": "Ollama base URL",
           "ollama_model": "Ollama model name",
+          "detection_profile": "Detection profile",
+          "custom_detection_label": "Custom detection label",
           "poll_interval": "Polling interval (seconds)",
           "ffmpeg_timeout": "Frame capture timeout (seconds)",
           "ollama_timeout": "Ollama timeout (seconds)",
@@ -45,15 +54,18 @@
           "crop_height": "Crop height"
         },
         "data_description": {
-          "detection_prompt": "This field supports long multiline prompts. Leave it blank to restore the built-in default prompt."
+          "custom_detection_label": "Used only for the Custom detection profile.",
+          "detection_prompt": "This field supports long multiline prompts. Leave it blank to restore the built-in prompt for the selected detection profile."
         }
       }
     },
     "error": {
+      "empty_custom_detection_label": "Enter a custom detection label.",
       "crop_bounds": "Crop region must stay within the image bounds.",
       "crop_incomplete": "Provide all crop fields or leave them all blank.",
       "crop_out_of_range": "Crop values must be between 0 and 1, with positive width and height.",
       "empty_model_name": "Enter an Ollama model name.",
+      "invalid_detection_profile": "Select a valid detection profile.",
       "invalid_ffmpeg_timeout": "Frame capture timeout must be a whole number between 5 and 300.",
       "invalid_ollama_url": "Enter a valid HTTP or HTTPS Ollama URL.",
       "invalid_ollama_timeout": "Ollama timeout must be a whole number between 5 and 300.",
@@ -69,7 +81,7 @@
   "services": {
     "reanalyze_now": {
       "name": "Reanalyze now",
-      "description": "Trigger an immediate frame capture and analysis run.",
+      "description": "Trigger an immediate frame capture and detection analysis run.",
       "fields": {
         "entry_id": {
           "name": "Entry ID",

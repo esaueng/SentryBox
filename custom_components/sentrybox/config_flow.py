@@ -14,7 +14,13 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_NAME
-from homeassistant.helpers.selector import TextSelector, TextSelectorConfig
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    TextSelector,
+    TextSelectorConfig,
+)
 
 from .const import (
     CONF_CONFIDENCE_THRESHOLD,
@@ -22,6 +28,8 @@ from .const import (
     CONF_CROP_WIDTH,
     CONF_CROP_X,
     CONF_CROP_Y,
+    CONF_CUSTOM_DETECTION_LABEL,
+    CONF_DETECTION_PROFILE,
     CONF_FFMPEG_TIMEOUT,
     CONF_DETECTION_PROMPT,
     CONF_NEGATIVE_DETECTIONS_REQUIRED,
@@ -32,12 +40,16 @@ from .const import (
     CONF_POSITIVE_DETECTIONS_REQUIRED,
     CONF_RETAIN_LATEST_SNAPSHOT,
     CONF_STREAM_URL,
-    DEFAULT_DETECTION_PROMPT,
+    DEFAULT_DETECTION_PROFILE,
     DEFAULT_NAME,
     DEFAULT_OLLAMA_BASE_URL,
     DEFAULT_OLLAMA_MODEL,
+    DETECTION_PROFILE_CUSTOM,
+    DETECTION_PROFILES,
     DOMAIN,
+    get_default_detection_prompt,
     get_default_options,
+    get_effective_detection_prompt,
     get_entry_value,
     make_entry_unique_id,
 )
@@ -113,6 +125,23 @@ def _validate_options_payload(user_input: dict[str, Any]) -> ValidationResult:
     cleaned_data[CONF_NAME] = (
         str(user_input.get(CONF_NAME, DEFAULT_NAME)).strip() or DEFAULT_NAME
     )
+    detection_profile = str(
+        user_input.get(CONF_DETECTION_PROFILE, DEFAULT_DETECTION_PROFILE)
+    ).strip()
+    if detection_profile not in DETECTION_PROFILES:
+        errors[CONF_DETECTION_PROFILE] = "invalid_detection_profile"
+        detection_profile = DEFAULT_DETECTION_PROFILE
+    cleaned_data[CONF_DETECTION_PROFILE] = detection_profile
+    cleaned_data[CONF_CUSTOM_DETECTION_LABEL] = str(
+        user_input.get(CONF_CUSTOM_DETECTION_LABEL, "")
+    ).strip()
+    if detection_profile != DETECTION_PROFILE_CUSTOM:
+        cleaned_data[CONF_CUSTOM_DETECTION_LABEL] = ""
+    if (
+        detection_profile == DETECTION_PROFILE_CUSTOM
+        and not cleaned_data[CONF_CUSTOM_DETECTION_LABEL]
+    ):
+        errors[CONF_CUSTOM_DETECTION_LABEL] = "empty_custom_detection_label"
 
     poll_interval, poll_interval_error = _coerce_int(
         user_input,
@@ -198,7 +227,10 @@ def _validate_options_payload(user_input: dict[str, Any]) -> ValidationResult:
                 errors[key] = crop_error
 
     if not cleaned_data[CONF_DETECTION_PROMPT]:
-        cleaned_data[CONF_DETECTION_PROMPT] = DEFAULT_DETECTION_PROMPT
+        cleaned_data[CONF_DETECTION_PROMPT] = get_default_detection_prompt(
+            detection_profile,
+            custom_label=cleaned_data[CONF_CUSTOM_DETECTION_LABEL],
+        )
 
     return ValidationResult(errors=errors, cleaned_data=cleaned_data)
 
@@ -209,6 +241,23 @@ def _validate_config_payload(user_input: dict[str, Any]) -> ValidationResult:
 
     name = str(user_input.get(CONF_NAME, DEFAULT_NAME)).strip() or DEFAULT_NAME
     cleaned_data[CONF_NAME] = name
+    detection_profile = str(
+        user_input.get(CONF_DETECTION_PROFILE, DEFAULT_DETECTION_PROFILE)
+    ).strip()
+    if detection_profile not in DETECTION_PROFILES:
+        errors[CONF_DETECTION_PROFILE] = "invalid_detection_profile"
+        detection_profile = DEFAULT_DETECTION_PROFILE
+    cleaned_data[CONF_DETECTION_PROFILE] = detection_profile
+    cleaned_data[CONF_CUSTOM_DETECTION_LABEL] = str(
+        user_input.get(CONF_CUSTOM_DETECTION_LABEL, "")
+    ).strip()
+    if detection_profile != DETECTION_PROFILE_CUSTOM:
+        cleaned_data[CONF_CUSTOM_DETECTION_LABEL] = ""
+    if (
+        detection_profile == DETECTION_PROFILE_CUSTOM
+        and not cleaned_data[CONF_CUSTOM_DETECTION_LABEL]
+    ):
+        errors[CONF_CUSTOM_DETECTION_LABEL] = "empty_custom_detection_label"
 
     try:
         cleaned_data[CONF_STREAM_URL] = _validate_stream_url(user_input[CONF_STREAM_URL])
@@ -240,6 +289,25 @@ def _options_schema(current: dict[str, Any]) -> vol.Schema:
                 default=current[CONF_OLLAMA_BASE_URL],
             ): str,
             vol.Required(CONF_OLLAMA_MODEL, default=current[CONF_OLLAMA_MODEL]): str,
+            vol.Required(
+                CONF_DETECTION_PROFILE,
+                default=current[CONF_DETECTION_PROFILE],
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=[
+                        SelectOptionDict(
+                            value=profile.key,
+                            label=profile.option_label,
+                        )
+                        for profile in DETECTION_PROFILES.values()
+                    ],
+                    mode="dropdown",
+                )
+            ),
+            vol.Optional(
+                CONF_CUSTOM_DETECTION_LABEL,
+                default=current[CONF_CUSTOM_DETECTION_LABEL],
+            ): str,
             vol.Required(
                 CONF_POLL_INTERVAL,
                 default=current[CONF_POLL_INTERVAL],
@@ -313,13 +381,18 @@ class SentryBoxConfigFlow(ConfigFlow, domain=DOMAIN):
                 unique_id = make_entry_unique_id(
                     validation.cleaned_data[CONF_STREAM_URL],
                     validation.cleaned_data[CONF_OLLAMA_MODEL],
+                    validation.cleaned_data[CONF_DETECTION_PROFILE],
+                    validation.cleaned_data[CONF_CUSTOM_DETECTION_LABEL],
                 )
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
                     title=validation.cleaned_data[CONF_NAME],
                     data=validation.cleaned_data,
-                    options=get_default_options(),
+                    options=get_default_options(
+                        profile_key=validation.cleaned_data[CONF_DETECTION_PROFILE],
+                        custom_label=validation.cleaned_data[CONF_CUSTOM_DETECTION_LABEL],
+                    ),
                 )
 
         return self.async_show_form(
@@ -336,6 +409,22 @@ class SentryBoxConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_OLLAMA_MODEL,
                         default=DEFAULT_OLLAMA_MODEL,
                     ): str,
+                    vol.Required(
+                        CONF_DETECTION_PROFILE,
+                        default=DEFAULT_DETECTION_PROFILE,
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(
+                                    value=profile.key,
+                                    label=profile.option_label,
+                                )
+                                for profile in DETECTION_PROFILES.values()
+                            ],
+                            mode="dropdown",
+                        )
+                    ),
+                    vol.Optional(CONF_CUSTOM_DETECTION_LABEL, default=""): str,
                 }
             ),
             errors=errors,
@@ -355,6 +444,10 @@ class SentryBoxOptionsFlow(OptionsFlowWithReload):
             key: get_entry_value(self.config_entry.data, self.config_entry.options, key)
             for key in get_default_options()
         }
+        current_options[CONF_DETECTION_PROMPT] = get_effective_detection_prompt(
+            self.config_entry.data,
+            self.config_entry.options,
+        )
         current_options[CONF_NAME] = self.config_entry.title or self.config_entry.data.get(
             CONF_NAME, DEFAULT_NAME
         )
@@ -375,6 +468,8 @@ class SentryBoxOptionsFlow(OptionsFlowWithReload):
                 new_unique_id = make_entry_unique_id(
                     config_validation.cleaned_data[CONF_STREAM_URL],
                     config_validation.cleaned_data[CONF_OLLAMA_MODEL],
+                    options_validation.cleaned_data[CONF_DETECTION_PROFILE],
+                    options_validation.cleaned_data[CONF_CUSTOM_DETECTION_LABEL],
                 )
                 for entry in self.hass.config_entries.async_entries(DOMAIN):
                     if (
@@ -385,6 +480,24 @@ class SentryBoxOptionsFlow(OptionsFlowWithReload):
                         break
 
             if not errors:
+                if (
+                    user_input.get(CONF_DETECTION_PROMPT, "").strip()
+                    == current_options[CONF_DETECTION_PROMPT]
+                    and (
+                        options_validation.cleaned_data[CONF_DETECTION_PROFILE]
+                        != current_options[CONF_DETECTION_PROFILE]
+                        or options_validation.cleaned_data[CONF_CUSTOM_DETECTION_LABEL]
+                        != current_options[CONF_CUSTOM_DETECTION_LABEL]
+                    )
+                ):
+                    options_validation.cleaned_data[CONF_DETECTION_PROMPT] = (
+                        get_default_detection_prompt(
+                            options_validation.cleaned_data[CONF_DETECTION_PROFILE],
+                            custom_label=options_validation.cleaned_data[
+                                CONF_CUSTOM_DETECTION_LABEL
+                            ],
+                        )
+                    )
                 self.hass.config_entries.async_update_entry(
                     self.config_entry,
                     title=config_validation.cleaned_data[CONF_NAME],

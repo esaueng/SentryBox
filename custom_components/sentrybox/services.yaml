@@ -1,6 +1,6 @@
 reanalyze_now:
   name: Reanalyze Now
-  description: Trigger an immediate frame capture and package analysis.
+  description: Trigger an immediate frame capture and detection analysis.
   fields:
     entry_id:
       name: Entry ID
