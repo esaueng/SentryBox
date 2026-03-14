@@ -9,6 +9,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .const import ATTR_ENTRY_ID, DOMAIN, PLATFORMS, SERVICE_REANALYZE_NOW
@@ -55,6 +56,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SentryBoxConfigEntry) ->
     entry.runtime_data = coordinator
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
+    await _async_remove_legacy_image_entity(hass, entry)
     await coordinator.async_refresh()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -66,3 +68,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: SentryBoxConfigEntry) -
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
     return unload_ok
+
+
+async def _async_remove_legacy_image_entity(
+    hass: HomeAssistant, entry: SentryBoxConfigEntry
+) -> None:
+    """Remove the legacy image entity after migrating to a camera entity."""
+    entity_registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        if entity.domain == "image" and entity.unique_id.endswith("last_analysis_frame"):
+            entity_registry.async_remove(entity.entity_id)

@@ -12,7 +12,7 @@ SentryBox is a Home Assistant custom integration that monitors an RTSP or RTSPS 
 - `custom_components/sentrybox/entity.py`: Shared entity metadata and state attributes.
 - `custom_components/sentrybox/binary_sensor.py`: Package detected entity.
 - `custom_components/sentrybox/sensor.py`: Confidence and summary entities.
-- `custom_components/sentrybox/image.py`: Preview entity for the exact frame sent to Ollama.
+- `custom_components/sentrybox/camera.py`: Preview camera for the exact frame sent to Ollama.
 - `custom_components/sentrybox/services.yaml`: `sentrybox.reanalyze_now` service definition.
 - `custom_components/sentrybox/strings.json` and `translations/en.json`: Config and options flow strings.
 
@@ -67,7 +67,7 @@ Each coordinator refresh performs the same pipeline:
    - `binary_sensor.<name>_package_detected`
    - `sensor.<name>_confidence`
    - `sensor.<name>_summary`
-   - `image.<name>_last_analysis_frame`
+   - `camera.<name>_last_analysis_frame`
 
 ## Service
 
@@ -78,7 +78,7 @@ Call `sentrybox.reanalyze_now` to trigger an immediate analysis. You can optiona
 1. Run `python3 -m compileall custom_components/sentrybox` from the repository root for a syntax check.
 2. Copy the integration into a Home Assistant test instance.
 3. Add the integration through the UI.
-4. Confirm the four entities are created, including the last analysis image preview.
+4. Confirm the four entities are created, including the last analysis camera preview.
 5. Use Developer Tools -> Actions and call `sentrybox.reanalyze_now`.
 6. Watch the entity states and attributes update after each refresh.
 7. Test both:
@@ -88,5 +88,5 @@ Call `sentrybox.reanalyze_now` to trigger an immediate analysis. You can optiona
 ## Notes
 
 - The prompt is conservative by default and prefers `not detected` when confidence is low.
-- The image preview entity always shows the latest analyzed frame; snapshot retention controls whether that on-disk path is exposed as a retained debug snapshot.
+- The camera preview entity always shows the latest analyzed frame; snapshot retention controls whether that on-disk path is exposed as a retained debug snapshot.
 - Credentials in the stream URL are redacted in logs.

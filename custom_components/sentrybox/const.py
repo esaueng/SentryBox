@@ -12,7 +12,7 @@ from homeassistant.const import Platform
 DOMAIN = "sentrybox"
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
-    Platform.IMAGE,
+    Platform.CAMERA,
     Platform.SENSOR,
 ]
 
