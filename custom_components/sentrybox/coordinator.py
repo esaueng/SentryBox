@@ -11,6 +11,7 @@ import logging
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 from typing import Any
 
 import aiohttp
@@ -416,6 +417,34 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
 
     def _capture_frame_sync(self) -> bytes:
         """Capture a still frame from the configured camera stream."""
+        primary_error: str | None = None
+        try:
+            return self._capture_frame_pipe_sync()
+        except UpdateFailed as err:
+            primary_error = str(err)
+            LOGGER.debug(
+                "Primary ffmpeg pipe capture failed for %s: %s",
+                redact_url(self.stream_url),
+                primary_error,
+            )
+
+        try:
+            image_bytes = self._capture_frame_file_sync()
+            LOGGER.debug(
+                "ffmpeg fallback JPEG capture succeeded for %s",
+                redact_url(self.stream_url),
+            )
+            return image_bytes
+        except UpdateFailed as err:
+            fallback_error = str(err)
+            if primary_error is None:
+                raise
+            raise UpdateFailed(
+                f"{primary_error}; fallback JPEG capture failed: {fallback_error}"
+            ) from err
+
+    def _capture_frame_pipe_sync(self) -> bytes:
+        """Capture a still frame by piping JPEG bytes from ffmpeg."""
         command = [
             "ffmpeg",
             "-hide_banner",
@@ -433,6 +462,8 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
             "tcp",
             "-i",
             self.stream_url,
+            "-map",
+            "0:v:0",
             "-frames:v",
             "1",
         ]
@@ -447,10 +478,91 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
                 "image2pipe",
                 "-vcodec",
                 "mjpeg",
-                "pipe:1",
+                "-",
             ]
         )
 
+        return self._run_ffmpeg_pipe_capture(command)
+
+    def _capture_frame_file_sync(self) -> bytes:
+        """Capture a still frame to a temporary JPEG file as a compatibility fallback."""
+        temporary = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        temporary_path = Path(temporary.name)
+        temporary.close()
+
+        command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-rtsp_transport",
+            "tcp",
+            "-analyzeduration",
+            "1000000",
+            "-probesize",
+            "1000000",
+            "-i",
+            self.stream_url,
+            "-map",
+            "0:v:0",
+            "-frames:v",
+            "1",
+        ]
+
+        crop_filter = self._crop_filter()
+        if crop_filter is not None:
+            command.extend(["-vf", crop_filter])
+
+        command.extend(
+            [
+                "-y",
+                "-q:v",
+                "2",
+                str(temporary_path),
+            ]
+        )
+
+        LOGGER.debug(
+            "Retrying frame capture to a temporary JPEG for %s",
+            redact_url(self.stream_url),
+        )
+
+        try:
+            process = subprocess.run(
+                command,
+                capture_output=True,
+                check=False,
+                timeout=self.ffmpeg_timeout,
+            )
+        except FileNotFoundError as err:
+            raise UpdateFailed("ffmpeg is not installed or not in PATH") from err
+        except subprocess.TimeoutExpired as err:
+            raise UpdateFailed("ffmpeg timed out while capturing a frame") from err
+        finally:
+            temporary_bytes: bytes | None = None
+            if temporary_path.exists():
+                try:
+                    temporary_bytes = temporary_path.read_bytes()
+                except OSError:
+                    temporary_bytes = None
+                temporary_path.unlink(missing_ok=True)
+
+        if process.returncode != 0:
+            stderr = process.stderr.decode("utf-8", errors="ignore").strip()
+            raise UpdateFailed(
+                f"ffmpeg failed to capture a frame: {stderr or 'Unknown ffmpeg error'}"
+            )
+
+        if not temporary_bytes:
+            raise UpdateFailed("ffmpeg fallback capture returned no JPEG bytes")
+
+        if not self._is_valid_jpeg(temporary_bytes):
+            raise UpdateFailed("ffmpeg fallback capture did not return a valid JPEG")
+
+        return temporary_bytes
+
+    def _run_ffmpeg_pipe_capture(self, command: list[str]) -> bytes:
+        """Run a pipe-based ffmpeg capture command and return JPEG bytes."""
         LOGGER.debug("Capturing frame from %s", redact_url(self.stream_url))
 
         try:
