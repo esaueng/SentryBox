@@ -50,8 +50,13 @@ class SentryBoxLastAnalysisImage(SentryBoxEntity, ImageEntity):
         """Return the timestamp of the latest preview update."""
         return self._image_last_updated
 
-    async def async_image(self) -> bytes | None:
+    async def async_image(
+        self,
+        width: int | None = None,
+        height: int | None = None,
+    ) -> bytes | None:
         """Return the latest analyzed image bytes."""
+        del width, height
         if not Path(self._preview_path).exists():
             return None
         return await self.hass.async_add_executor_job(
