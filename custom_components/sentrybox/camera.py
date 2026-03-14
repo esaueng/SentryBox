@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -36,7 +34,6 @@ class SentryBoxLastAnalysisCamera(CoordinatorEntity[SentryBoxCoordinator], Camer
         """Initialize the camera entity."""
         Camera.__init__(self)
         CoordinatorEntity.__init__(self, coordinator)
-        self._preview_path = coordinator.preview_image_path
         self._attr_unique_id = f"{entry.entry_id}_last_analysis_frame"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
@@ -49,7 +46,7 @@ class SentryBoxLastAnalysisCamera(CoordinatorEntity[SentryBoxCoordinator], Camer
     @property
     def available(self) -> bool:
         """Return whether a preview frame is available."""
-        return Path(self._preview_path).exists()
+        return self.coordinator.last_preview_bytes is not None
 
     @property
     def is_recording(self) -> bool:
@@ -68,22 +65,4 @@ class SentryBoxLastAnalysisCamera(CoordinatorEntity[SentryBoxCoordinator], Camer
     ) -> bytes | None:
         """Return the latest analyzed image bytes."""
         del width, height
-        if self.coordinator.data is not None and self.coordinator.data.preview_image_path:
-            self._preview_path = self.coordinator.data.preview_image_path
-
-        if not Path(self._preview_path).exists():
-            return None
-
-        return await self.hass.async_add_executor_job(
-            self._read_camera_bytes,
-            self._preview_path,
-        )
-
-    @staticmethod
-    def _read_camera_bytes(path: str) -> bytes | None:
-        """Read camera bytes from disk."""
-        try:
-            with open(path, "rb") as image_file:
-                return image_file.read()
-        except FileNotFoundError:
-            return None
+        return self.coordinator.last_preview_bytes

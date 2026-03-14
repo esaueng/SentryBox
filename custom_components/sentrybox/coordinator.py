@@ -8,10 +8,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
 import logging
+import os
 from pathlib import Path
-import shutil
 import subprocess
-import tempfile
 from typing import Any
 
 import aiohttp
@@ -95,6 +94,7 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         self._stable_detected = False
         self._last_error_fingerprint: str | None = None
         self._last_error_message: str | None = None
+        self._last_preview_bytes: bytes | None = None
 
         super().__init__(
             hass,
@@ -103,6 +103,7 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
             name=entry.title or DEFAULT_NAME,
             update_interval=self._build_update_interval(),
         )
+        self._last_preview_bytes = self._load_preview_bytes_sync()
 
     def _build_update_interval(self):
         seconds = int(
@@ -220,20 +221,25 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
             return None
         return values  # type: ignore[return-value]
 
+    @property
+    def last_preview_bytes(self) -> bytes | None:
+        """Return the last valid preview frame bytes."""
+        return self._last_preview_bytes
+
     async def _async_update_data(self) -> SentryBoxResult:
         """Capture a frame, analyze it with Ollama, and update entity state."""
-        image_path: str | None = None
         analyzed_at = datetime.now(timezone.utc)
 
         try:
-            image_path = await self.hass.async_add_executor_job(self._capture_frame_sync)
+            image_bytes = await self.hass.async_add_executor_job(self._capture_frame_sync)
             preview_image_path = await self.hass.async_add_executor_job(
                 self._store_preview_image_sync,
-                image_path,
+                image_bytes,
             )
+            self._last_preview_bytes = image_bytes
             encoded_image = await self.hass.async_add_executor_job(
-                self._encode_image_sync,
-                image_path,
+                self._encode_image_bytes_sync,
+                image_bytes,
             )
             raw_response = await self._async_call_ollama(encoded_image)
             parsed = self._parse_ollama_response(raw_response)
@@ -266,9 +272,6 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         except Exception as err:
             self._log_failure_once(type(err).__name__, str(err))
             raise UpdateFailed(str(err)) from err
-        finally:
-            if image_path and not self.retain_latest_snapshot:
-                await self.hass.async_add_executor_job(self._delete_file_sync, image_path)
 
     def _apply_debounce(self, raw_detected: bool) -> bool:
         """Apply consecutive-result debounce to the raw detection."""
@@ -371,56 +374,70 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
             raw_response=content,
         )
 
-    def _capture_frame_sync(self) -> str:
+    def _capture_frame_sync(self) -> bytes:
         """Capture a still frame from the configured camera stream."""
-        target_file = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
-        target_path = Path(target_file.name)
-        target_file.close()
-
         command = [
             "ffmpeg",
             "-hide_banner",
             "-loglevel",
             "error",
-            "-y",
+            "-fflags",
+            "nobuffer",
+            "-flags",
+            "low_delay",
+            "-analyzeduration",
+            "0",
+            "-probesize",
+            "32",
             "-rtsp_transport",
             "tcp",
             "-i",
             self.stream_url,
             "-frames:v",
             "1",
-            "-q:v",
-            "2",
         ]
 
         crop_filter = self._crop_filter()
         if crop_filter is not None:
             command.extend(["-vf", crop_filter])
 
-        command.append(str(target_path))
+        command.extend(
+            [
+                "-f",
+                "image2pipe",
+                "-vcodec",
+                "mjpeg",
+                "pipe:1",
+            ]
+        )
 
         LOGGER.debug("Capturing frame from %s", redact_url(self.stream_url))
 
         try:
-            subprocess.run(
+            process = subprocess.run(
                 command,
-                check=True,
                 capture_output=True,
-                text=True,
+                check=False,
                 timeout=self.ffmpeg_timeout,
             )
         except FileNotFoundError as err:
-            self._delete_file_sync(str(target_path))
             raise UpdateFailed("ffmpeg is not installed or not in PATH") from err
         except subprocess.TimeoutExpired as err:
-            self._delete_file_sync(str(target_path))
             raise UpdateFailed("ffmpeg timed out while capturing a frame") from err
-        except subprocess.CalledProcessError as err:
-            self._delete_file_sync(str(target_path))
-            stderr = (err.stderr or "").strip() or "Unknown ffmpeg error"
-            raise UpdateFailed(f"ffmpeg failed to capture a frame: {stderr}") from err
 
-        return str(target_path)
+        if process.returncode != 0:
+            stderr = process.stderr.decode("utf-8", errors="ignore").strip()
+            raise UpdateFailed(
+                f"ffmpeg failed to capture a frame: {stderr or 'Unknown ffmpeg error'}"
+            )
+
+        if not process.stdout:
+            raise UpdateFailed("ffmpeg returned empty frame output")
+
+        if not self._is_valid_jpeg(process.stdout):
+            raise UpdateFailed("ffmpeg did not return a valid JPEG frame")
+
+        return process.stdout
 
     def _snapshot_path(self) -> Path:
         """Return the persistent preview path for this entry."""
@@ -434,12 +451,32 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         """Return the persisted preview image path for this entry."""
         return str(self._snapshot_path())
 
-    def _store_preview_image_sync(self, source_path: str) -> str:
+    def _store_preview_image_sync(self, image_bytes: bytes) -> str:
         """Store the latest analyzed image for preview in Home Assistant."""
         preview_path = self._snapshot_path()
         preview_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source_path, preview_path)
+        temp_path = preview_path.with_suffix(".tmp")
+        with open(temp_path, "wb") as preview_file:
+            preview_file.write(image_bytes)
+        os.replace(temp_path, preview_path)
         return str(preview_path)
+
+    def _load_preview_bytes_sync(self) -> bytes | None:
+        """Load the last good preview image from disk if it exists."""
+        preview_path = self._snapshot_path()
+        if not preview_path.exists():
+            return None
+
+        try:
+            image_bytes = preview_path.read_bytes()
+        except OSError:
+            return None
+
+        if not self._is_valid_jpeg(image_bytes):
+            LOGGER.debug("Ignoring invalid cached preview image at %s", preview_path)
+            return None
+
+        return image_bytes
 
     def _crop_filter(self) -> str | None:
         """Return the ffmpeg crop filter for the normalized crop region."""
@@ -452,17 +489,18 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         )
 
     @staticmethod
-    def _encode_image_sync(path: str) -> str:
-        """Read and base64-encode an image file."""
-        with open(path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode("utf-8")
+    def _encode_image_bytes_sync(image_bytes: bytes) -> str:
+        """Base64-encode JPEG bytes."""
+        return base64.b64encode(image_bytes).decode("utf-8")
 
     @staticmethod
-    def _delete_file_sync(path: str) -> None:
-        """Delete a file if it exists."""
-        file_path = Path(path)
-        if file_path.exists():
-            file_path.unlink(missing_ok=True)
+    def _is_valid_jpeg(image_bytes: bytes) -> bool:
+        """Return whether bytes look like a complete JPEG payload."""
+        return (
+            len(image_bytes) > 4
+            and image_bytes.startswith(b"\xff\xd8")
+            and image_bytes.rstrip().endswith(b"\xff\xd9")
+        )
 
     @staticmethod
     def _extract_json_object(content: str) -> str | None:
