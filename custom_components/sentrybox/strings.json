@@ -45,7 +45,7 @@
           "crop_height": "Crop height"
         },
         "data_description": {
-          "detection_prompt": "This field supports long multiline prompts. Leave it blank to restore the built-in default, or use the Reset Prompt button entity on the device."
+          "detection_prompt": "This field supports long multiline prompts. Leave it blank to restore the built-in default prompt."
         }
       }
     },
