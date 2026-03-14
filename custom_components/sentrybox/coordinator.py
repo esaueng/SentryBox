@@ -27,19 +27,19 @@ from .const import (
     CONF_CROP_WIDTH,
     CONF_CROP_X,
     CONF_CROP_Y,
+    CONF_FFMPEG_TIMEOUT,
     CONF_DETECTION_PROMPT,
     CONF_NEGATIVE_DETECTIONS_REQUIRED,
     CONF_OLLAMA_BASE_URL,
     CONF_OLLAMA_MODEL,
+    CONF_OLLAMA_TIMEOUT,
     CONF_POLL_INTERVAL,
     CONF_POSITIVE_DETECTIONS_REQUIRED,
     CONF_RETAIN_LATEST_SNAPSHOT,
     CONF_STREAM_URL,
     DEFAULT_NAME,
-    FFMPEG_TIMEOUT_SECONDS,
     MAX_SUMMARY_LENGTH,
     OLLAMA_JSON_SCHEMA,
-    OLLAMA_TIMEOUT_SECONDS,
     SNAPSHOT_DIRECTORY,
     get_entry_value,
     redact_url,
@@ -71,6 +71,7 @@ class SentryBoxResult:
     last_analyzed: datetime
     model_name: str
     raw_response: str | None
+    preview_image_path: str | None
     snapshot_path: str | None
     confidence_threshold: float
     positive_streak: int
@@ -182,6 +183,28 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         )
 
     @property
+    def ffmpeg_timeout(self) -> int:
+        """Return the configured ffmpeg timeout."""
+        return int(
+            get_entry_value(
+                self.config_entry.data,
+                self.config_entry.options,
+                CONF_FFMPEG_TIMEOUT,
+            )
+        )
+
+    @property
+    def ollama_timeout(self) -> int:
+        """Return the configured Ollama timeout."""
+        return int(
+            get_entry_value(
+                self.config_entry.data,
+                self.config_entry.options,
+                CONF_OLLAMA_TIMEOUT,
+            )
+        )
+
+    @property
     def crop_region(self) -> tuple[float, float, float, float] | None:
         """Return the configured crop region."""
         values = tuple(
@@ -204,6 +227,10 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
 
         try:
             image_path = await self.hass.async_add_executor_job(self._capture_frame_sync)
+            preview_image_path = await self.hass.async_add_executor_job(
+                self._store_preview_image_sync,
+                image_path,
+            )
             encoded_image = await self.hass.async_add_executor_job(
                 self._encode_image_sync,
                 image_path,
@@ -225,7 +252,8 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
                 last_analyzed=analyzed_at,
                 model_name=self.model_name,
                 raw_response=parsed.raw_response,
-                snapshot_path=image_path if self.retain_latest_snapshot else None,
+                preview_image_path=preview_image_path,
+                snapshot_path=preview_image_path if self.retain_latest_snapshot else None,
                 confidence_threshold=self.confidence_threshold,
                 positive_streak=self._positive_streak,
                 negative_streak=self._negative_streak,
@@ -277,7 +305,7 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
             async with self._session.post(
                 request_url,
                 json=payload,
-                timeout=aiohttp.ClientTimeout(total=OLLAMA_TIMEOUT_SECONDS),
+                timeout=aiohttp.ClientTimeout(total=self.ollama_timeout),
             ) as response:
                 body = await response.json(content_type=None)
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
@@ -349,10 +377,6 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
         target_path = Path(target_file.name)
         target_file.close()
 
-        snapshot_path = self._snapshot_path()
-        if not self.retain_latest_snapshot:
-            self._delete_file_sync(str(snapshot_path))
-
         command = [
             "ffmpeg",
             "-hide_banner",
@@ -383,7 +407,7 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
                 check=True,
                 capture_output=True,
                 text=True,
-                timeout=FFMPEG_TIMEOUT_SECONDS,
+                timeout=self.ffmpeg_timeout,
             )
         except FileNotFoundError as err:
             self._delete_file_sync(str(target_path))
@@ -396,19 +420,21 @@ class SentryBoxCoordinator(DataUpdateCoordinator[SentryBoxResult]):
             stderr = (err.stderr or "").strip() or "Unknown ffmpeg error"
             raise UpdateFailed(f"ffmpeg failed to capture a frame: {stderr}") from err
 
-        if self.retain_latest_snapshot:
-            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(target_path), snapshot_path)
-            return str(snapshot_path)
-
         return str(target_path)
 
     def _snapshot_path(self) -> Path:
-        """Return the persistent snapshot path for this entry."""
+        """Return the persistent preview path for this entry."""
         return (
             Path(self.hass.config.path(SNAPSHOT_DIRECTORY))
             / f"{self.config_entry.entry_id}.jpg"
         )
+
+    def _store_preview_image_sync(self, source_path: str) -> str:
+        """Store the latest analyzed image for preview in Home Assistant."""
+        preview_path = self._snapshot_path()
+        preview_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source_path, preview_path)
+        return str(preview_path)
 
     def _crop_filter(self) -> str | None:
         """Return the ffmpeg crop filter for the normalized crop region."""

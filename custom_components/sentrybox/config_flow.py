@@ -21,10 +21,12 @@ from .const import (
     CONF_CROP_WIDTH,
     CONF_CROP_X,
     CONF_CROP_Y,
+    CONF_FFMPEG_TIMEOUT,
     CONF_DETECTION_PROMPT,
     CONF_NEGATIVE_DETECTIONS_REQUIRED,
     CONF_OLLAMA_BASE_URL,
     CONF_OLLAMA_MODEL,
+    CONF_OLLAMA_TIMEOUT,
     CONF_POLL_INTERVAL,
     CONF_POSITIVE_DETECTIONS_REQUIRED,
     CONF_RETAIN_LATEST_SNAPSHOT,
@@ -45,6 +47,25 @@ class ValidationResult:
 
     errors: dict[str, str]
     cleaned_data: dict[str, Any]
+
+
+def _coerce_int(
+    user_input: dict[str, Any],
+    key: str,
+    *,
+    minimum: int,
+    maximum: int,
+    error_key: str,
+) -> tuple[int | None, str | None]:
+    """Parse and validate a bounded integer."""
+    try:
+        value = int(user_input[key])
+    except (TypeError, ValueError):
+        return None, error_key
+
+    if value < minimum or value > maximum:
+        return None, error_key
+    return value, None
 
 
 def _validate_stream_url(value: str) -> str:
@@ -87,18 +108,45 @@ def _validate_crop(cleaned_data: dict[str, Any]) -> None:
 def _validate_options_payload(user_input: dict[str, Any]) -> ValidationResult:
     errors: dict[str, str] = {}
     cleaned_data: dict[str, Any] = {}
-    cleaned_data[CONF_NAME] = str(user_input.get(CONF_NAME, DEFAULT_NAME)).strip() or DEFAULT_NAME
+    cleaned_data[CONF_NAME] = (
+        str(user_input.get(CONF_NAME, DEFAULT_NAME)).strip() or DEFAULT_NAME
+    )
 
-    try:
-        cleaned_data[CONF_POLL_INTERVAL] = int(user_input[CONF_POLL_INTERVAL])
-        if cleaned_data[CONF_POLL_INTERVAL] < 5:
-            raise ValueError("poll_interval_too_low")
-    except ValueError as err:
-        errors[CONF_POLL_INTERVAL] = (
-            str(err) if str(err) == "poll_interval_too_low" else "invalid_poll_interval"
-        )
-    except TypeError:
-        errors[CONF_POLL_INTERVAL] = "invalid_poll_interval"
+    poll_interval, poll_interval_error = _coerce_int(
+        user_input,
+        CONF_POLL_INTERVAL,
+        minimum=5,
+        maximum=3600,
+        error_key="invalid_poll_interval",
+    )
+    if poll_interval_error:
+        errors[CONF_POLL_INTERVAL] = poll_interval_error
+    else:
+        cleaned_data[CONF_POLL_INTERVAL] = poll_interval
+
+    ffmpeg_timeout, ffmpeg_timeout_error = _coerce_int(
+        user_input,
+        CONF_FFMPEG_TIMEOUT,
+        minimum=5,
+        maximum=300,
+        error_key="invalid_ffmpeg_timeout",
+    )
+    if ffmpeg_timeout_error:
+        errors[CONF_FFMPEG_TIMEOUT] = ffmpeg_timeout_error
+    else:
+        cleaned_data[CONF_FFMPEG_TIMEOUT] = ffmpeg_timeout
+
+    ollama_timeout, ollama_timeout_error = _coerce_int(
+        user_input,
+        CONF_OLLAMA_TIMEOUT,
+        minimum=5,
+        maximum=300,
+        error_key="invalid_ollama_timeout",
+    )
+    if ollama_timeout_error:
+        errors[CONF_OLLAMA_TIMEOUT] = ollama_timeout_error
+    else:
+        cleaned_data[CONF_OLLAMA_TIMEOUT] = ollama_timeout
 
     try:
         cleaned_data[CONF_CONFIDENCE_THRESHOLD] = float(
@@ -195,6 +243,14 @@ def _options_schema(current: dict[str, Any]) -> vol.Schema:
                 default=current[CONF_POLL_INTERVAL],
             ): int,
             vol.Required(
+                CONF_FFMPEG_TIMEOUT,
+                default=current[CONF_FFMPEG_TIMEOUT],
+            ): int,
+            vol.Required(
+                CONF_OLLAMA_TIMEOUT,
+                default=current[CONF_OLLAMA_TIMEOUT],
+            ): int,
+            vol.Required(
                 CONF_CONFIDENCE_THRESHOLD,
                 default=current[CONF_CONFIDENCE_THRESHOLD],
             ): vol.Coerce(float),
@@ -240,7 +296,7 @@ class SentryBoxConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return SentryBoxOptionsFlow(config_entry)
+        return SentryBoxOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

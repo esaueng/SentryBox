@@ -50,6 +50,7 @@ class SentryBoxEntity(CoordinatorEntity[SentryBoxCoordinator]):
             "model_name": result.model_name,
             "last_raw_response": result.raw_response,
             "last_image_path": result.snapshot_path,
+            "preview_image_path": result.preview_image_path,
             "raw_package_detected": result.raw_package_detected,
             "model_package_detected": result.model_package_detected,
             "confidence_threshold": result.confidence_threshold,
@@ -57,6 +58,11 @@ class SentryBoxEntity(CoordinatorEntity[SentryBoxCoordinator]):
             "negative_streak": result.negative_streak,
             "positive_detections_required": result.positive_required,
             "negative_detections_required": result.negative_required,
+            "poll_interval_seconds": self.coordinator.update_interval.total_seconds()
+            if self.coordinator.update_interval
+            else None,
+            "ffmpeg_timeout_seconds": self.coordinator.ffmpeg_timeout,
+            "ollama_timeout_seconds": self.coordinator.ollama_timeout,
             "last_error": result.error,
         }
 

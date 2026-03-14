@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">SentryBox icon</title>
+  <desc id="desc">A stylized front door inside a shield with a delivered package in front.</desc>
+  <defs>
+    <linearGradient id="shieldFill" x1="96" y1="72" x2="420" y2="432" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#15313a"/>
+      <stop offset="1" stop-color="#0b161a"/>
+    </linearGradient>
+    <linearGradient id="packageFill" x1="172" y1="300" x2="340" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6b34f"/>
+      <stop offset="1" stop-color="#e17b2d"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <path d="M256 52c72 48 134 54 182 62v118c0 109-68 189-182 228C142 421 74 341 74 232V114c48-8 110-14 182-62Z" fill="url(#shieldFill)"/>
+  </g>
+
+  <path d="M256 94c53 31 102 40 144 47v90c0 86-49 147-144 188-95-41-144-102-144-188v-90c42-7 91-16 144-47Z" fill="#0f242b"/>
+
+  <path d="M194 164h124c17 0 30 13 30 30v120c0 17-13 30-30 30H194c-17 0-30-13-30-30V194c0-17 13-30 30-30Z" fill="#f3f6f3"/>
+  <path d="M222 164h64v180h-64z" fill="#dfe7e0"/>
+  <circle cx="273" cy="254" r="7" fill="#0f242b"/>
+
+  <g transform="translate(155 286)">
+    <path d="M101 0 0 42l101 46 101-46Z" fill="#ffd58b"/>
+    <path d="M0 42v76l101 50V88Z" fill="#f1a84b"/>
+    <path d="M202 42v76l-101 50V88Z" fill="url(#packageFill)"/>
+    <path d="M101 0v88" fill="none" stroke="#b75b22" stroke-width="8" stroke-linecap="round"/>
+    <path d="M42 26 143 70" fill="none" stroke="#b75b22" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <path d="M108 382c42 15 90 24 148 24s106-9 148-24" fill="none" stroke="#4aa3a2" stroke-width="14" stroke-linecap="round" opacity="0.8"/>
+</svg>

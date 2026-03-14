@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" role="img" aria-labelledby="title desc">
+  <title id="title">SentryBox logo</title>
+  <desc id="desc">SentryBox wordmark with a shield, front door, and package icon.</desc>
+  <defs>
+    <linearGradient id="shieldFill" x1="18" y1="18" x2="176" y2="204" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#15313a"/>
+      <stop offset="1" stop-color="#0b161a"/>
+    </linearGradient>
+    <linearGradient id="packageFill" x1="64" y1="120" x2="148" y2="184" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6b34f"/>
+      <stop offset="1" stop-color="#e17b2d"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(16 10)">
+    <path d="M96 8c33 22 61 25 83 29v54c0 49-31 85-83 107C44 176 13 140 13 91V37c22-4 50-7 83-29Z" fill="url(#shieldFill)"/>
+    <path d="M96 30c24 14 46 18 65 21v41c0 39-22 67-65 89C53 159 31 131 31 92V51c19-3 41-7 65-21Z" fill="#0f242b"/>
+    <path d="M61 63h70c9 0 16 7 16 16v65c0 9-7 16-16 16H61c-9 0-16-7-16-16V79c0-9 7-16 16-16Z" fill="#f3f6f3"/>
+    <path d="M77 63h34v97H77z" fill="#dfe7e0"/>
+    <circle cx="104" cy="113" r="4" fill="#0f242b"/>
+    <g transform="translate(40 126)">
+      <path d="M56 0 0 24l56 25 56-25Z" fill="#ffd58b"/>
+      <path d="M0 24v42l56 27V49Z" fill="#f1a84b"/>
+      <path d="M112 24v42L56 93V49Z" fill="url(#packageFill)"/>
+      <path d="M56 0v49" fill="none" stroke="#b75b22" stroke-width="4" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <g fill="#102229">
+    <path d="M257 77c0-30 24-50 59-50 23 0 43 8 56 24l-26 24c-8-9-17-14-28-14-12 0-20 6-20 15 0 10 7 14 29 19 31 7 52 18 52 49 0 32-25 51-60 51-29 0-52-10-65-28l26-24c11 12 24 18 37 18 13 0 22-6 22-16 0-10-8-14-30-19-31-7-52-20-52-49Z"/>
+    <path d="M462 69c38 0 63 27 63 64 0 5 0 10-1 14h-94c4 12 15 19 31 19 12 0 22-4 32-11l18 24c-14 11-31 17-53 17-43 0-72-27-72-64s29-63 67-63Zm-27 52h53c-3-12-12-19-25-19-14 0-24 7-28 19Z"/>
+    <path d="M546 167V28h40v138Z"/>
+    <path d="M609 167V28h40v138Z"/>
+    <path d="M716 196c-27 0-47-8-63-22l20-27c11 9 24 14 37 14 17 0 27-9 27-28v-3c-10 10-22 15-39 15-33 0-58-24-58-57 0-35 27-59 60-59 16 0 31 6 41 17V32h36v97c0 42-27 67-61 67Zm-2-83c14 0 24-10 24-24s-10-24-24-24-24 10-24 24 10 24 24 24Z"/>
+    <path d="M808 167V32h40v16c10-12 22-19 40-19 29 0 48 19 48 49v89h-40V91c0-15-8-24-21-24s-27 11-27 31v69Z"/>
+  </g>
+
+  <g fill="#ea8d34">
+    <path d="M580 166h44v29h-44z"/>
+    <path d="M629 166h44v29h-44z"/>
+  </g>
+</svg>

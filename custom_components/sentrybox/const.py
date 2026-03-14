@@ -10,17 +10,19 @@ from urllib.parse import SplitResult, urlsplit, urlunsplit
 from homeassistant.const import Platform
 
 DOMAIN = "sentrybox"
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.IMAGE, Platform.SENSOR]
 
 CONF_CROP_HEIGHT = "crop_height"
 CONF_CROP_WIDTH = "crop_width"
 CONF_CROP_X = "crop_x"
 CONF_CROP_Y = "crop_y"
+CONF_FFMPEG_TIMEOUT = "ffmpeg_timeout"
 CONF_CONFIDENCE_THRESHOLD = "confidence_threshold"
 CONF_DETECTION_PROMPT = "detection_prompt"
 CONF_NEGATIVE_DETECTIONS_REQUIRED = "negative_detections_required"
 CONF_OLLAMA_BASE_URL = "ollama_base_url"
 CONF_OLLAMA_MODEL = "ollama_model"
+CONF_OLLAMA_TIMEOUT = "ollama_timeout"
 CONF_POLL_INTERVAL = "poll_interval"
 CONF_POSITIVE_DETECTIONS_REQUIRED = "positive_detections_required"
 CONF_RETAIN_LATEST_SNAPSHOT = "retain_latest_snapshot"
@@ -36,6 +38,8 @@ DEFAULT_CONFIDENCE_THRESHOLD = 0.7
 DEFAULT_RETAIN_LATEST_SNAPSHOT = False
 DEFAULT_POSITIVE_DETECTIONS_REQUIRED = 2
 DEFAULT_NEGATIVE_DETECTIONS_REQUIRED = 2
+DEFAULT_FFMPEG_TIMEOUT = 20
+DEFAULT_OLLAMA_TIMEOUT = 45
 DEFAULT_DETECTION_PROMPT = (
     "You are analyzing a security camera image of a home entrance. Determine "
     "whether a delivery package is currently visible at or immediately next to "
@@ -61,8 +65,6 @@ OLLAMA_JSON_SCHEMA: dict[str, Any] = {
 SNAPSHOT_DIRECTORY = ".sentrybox"
 SERVICE_REANALYZE_NOW = "reanalyze_now"
 
-FFMPEG_TIMEOUT_SECONDS = 20
-OLLAMA_TIMEOUT_SECONDS = 45
 MAX_SUMMARY_LENGTH = 255
 
 
@@ -75,6 +77,8 @@ def get_default_options() -> dict[str, Any]:
         CONF_RETAIN_LATEST_SNAPSHOT: DEFAULT_RETAIN_LATEST_SNAPSHOT,
         CONF_POSITIVE_DETECTIONS_REQUIRED: DEFAULT_POSITIVE_DETECTIONS_REQUIRED,
         CONF_NEGATIVE_DETECTIONS_REQUIRED: DEFAULT_NEGATIVE_DETECTIONS_REQUIRED,
+        CONF_FFMPEG_TIMEOUT: DEFAULT_FFMPEG_TIMEOUT,
+        CONF_OLLAMA_TIMEOUT: DEFAULT_OLLAMA_TIMEOUT,
         CONF_CROP_X: None,
         CONF_CROP_Y: None,
         CONF_CROP_WIDTH: None,
