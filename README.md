@@ -31,7 +31,7 @@ Use values similar to these during setup:
 - `Name`: `SentryBox`
 - `RTSP/RTSPS stream URL`: `rtsp://username:password@camera.local:554/stream1`
 - `Ollama base URL`: `http://localhost:11434`
-- `Ollama model name`: `llava:13b`
+- `Ollama model name`: `gemma3:4b`
 
 After the integration is created, open the entry options to tune:
 

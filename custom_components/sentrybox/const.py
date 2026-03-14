@@ -30,6 +30,7 @@ ATTR_ENTRY_ID = "entry_id"
 
 DEFAULT_NAME = "SentryBox"
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
+DEFAULT_OLLAMA_MODEL = "gemma3:4b"
 DEFAULT_POLL_INTERVAL = 60
 DEFAULT_CONFIDENCE_THRESHOLD = 0.7
 DEFAULT_RETAIN_LATEST_SNAPSHOT = False
@@ -130,4 +131,3 @@ def redact_url(url: str) -> str:
             fragment="",
         )
     )
-

@@ -31,6 +31,7 @@ from .const import (
     CONF_STREAM_URL,
     DEFAULT_NAME,
     DEFAULT_OLLAMA_BASE_URL,
+    DEFAULT_OLLAMA_MODEL,
     DOMAIN,
     get_default_options,
     get_entry_value,
@@ -273,7 +274,10 @@ class SentryBoxConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_OLLAMA_BASE_URL,
                         default=DEFAULT_OLLAMA_BASE_URL,
                     ): str,
-                    vol.Required(CONF_OLLAMA_MODEL): str,
+                    vol.Required(
+                        CONF_OLLAMA_MODEL,
+                        default=DEFAULT_OLLAMA_MODEL,
+                    ): str,
                 }
             ),
             errors=errors,
