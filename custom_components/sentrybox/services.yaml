@@ -1,0 +1,10 @@
+reanalyze_now:
+  name: Reanalyze Now
+  description: Trigger an immediate frame capture and package analysis.
+  fields:
+    entry_id:
+      name: Entry ID
+      description: Optional config entry ID to refresh. If omitted, all SentryBox entries refresh.
+      example: 01HV1234567890ABCDEF
+      selector:
+        text:

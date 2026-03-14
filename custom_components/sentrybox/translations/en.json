@@ -1,0 +1,75 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up SentryBox",
+        "description": "Configure the camera stream and local Ollama vision model.",
+        "data": {
+          "name": "Name",
+          "stream_url": "RTSP/RTSPS stream URL",
+          "ollama_base_url": "Ollama base URL",
+          "ollama_model": "Ollama model name"
+        }
+      }
+    },
+    "error": {
+      "empty_model_name": "Enter an Ollama model name.",
+      "invalid_ollama_url": "Enter a valid HTTP or HTTPS Ollama URL.",
+      "invalid_stream_url": "Enter a valid RTSP or RTSPS stream URL."
+    },
+    "abort": {
+      "already_configured": "This stream and model are already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SentryBox options",
+        "description": "Adjust polling, prompt, crop, confidence threshold, and debounce behavior.",
+        "data": {
+          "name": "Name",
+          "stream_url": "RTSP/RTSPS stream URL",
+          "ollama_base_url": "Ollama base URL",
+          "ollama_model": "Ollama model name",
+          "poll_interval": "Polling interval (seconds)",
+          "confidence_threshold": "Confidence threshold",
+          "detection_prompt": "Detection prompt",
+          "retain_latest_snapshot": "Keep the latest snapshot file",
+          "positive_detections_required": "Consecutive positives required to turn on",
+          "negative_detections_required": "Consecutive negatives required to turn off",
+          "crop_x": "Crop x",
+          "crop_y": "Crop y",
+          "crop_width": "Crop width",
+          "crop_height": "Crop height"
+        }
+      }
+    },
+    "error": {
+      "crop_bounds": "Crop region must stay within the image bounds.",
+      "crop_incomplete": "Provide all crop fields or leave them all blank.",
+      "crop_out_of_range": "Crop values must be between 0 and 1, with positive width and height.",
+      "empty_model_name": "Enter an Ollama model name.",
+      "empty_prompt": "Enter a detection prompt.",
+      "invalid_ollama_url": "Enter a valid HTTP or HTTPS Ollama URL.",
+      "invalid_confidence_threshold": "Confidence threshold must be between 0.0 and 1.0.",
+      "invalid_crop_value": "Crop values must be numbers between 0 and 1.",
+      "invalid_debounce_count": "Debounce counts must be whole numbers between 1 and 10.",
+      "invalid_poll_interval": "Polling interval must be a whole number.",
+      "invalid_stream_url": "Enter a valid RTSP or RTSPS stream URL.",
+      "already_configured": "This stream and model are already configured.",
+      "poll_interval_too_low": "Polling interval must be at least 5 seconds."
+    }
+  },
+  "services": {
+    "reanalyze_now": {
+      "name": "Reanalyze now",
+      "description": "Trigger an immediate frame capture and analysis run.",
+      "fields": {
+        "entry_id": {
+          "name": "Entry ID",
+          "description": "Optional config entry ID. Leave blank to refresh all SentryBox entries."
+        }
+      }
+    }
+  }
+}

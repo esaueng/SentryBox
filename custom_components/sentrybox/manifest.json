@@ -1,0 +1,10 @@
+{
+  "domain": "sentrybox",
+  "name": "SentryBox",
+  "codeowners": [],
+  "config_flow": true,
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "loggers": ["custom_components.sentrybox"],
+  "version": "0.1.0"
+}
