@@ -111,3 +111,9 @@ Call `sentrybox.reanalyze_now` to trigger an immediate analysis. You can optiona
 - Leaving the prompt blank in options resets it to the built-in prompt for the selected detection profile.
 - The camera preview entity always shows the latest analyzed frame; snapshot retention controls whether that on-disk path is exposed as a retained debug snapshot.
 - Credentials in the stream URL are redacted in logs.
+
+## License
+
+Copyright 2026 Esau Engineering LLC.
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
